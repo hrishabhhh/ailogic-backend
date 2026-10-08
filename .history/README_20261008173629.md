@@ -1,0 +1,253 @@
+# AiLogic Backend Assessment
+
+Node.js backend application
+
+## Tech Stack
+
+- Node.js
+- TypeScript
+- Express.js
+- PostgreSQL
+- Prisma ORM
+- Redis
+- JWT
+- bcryptjs
+
+## Features
+
+- User registration
+- User login
+- Secure password hashing using bcrypt
+- JWT-based authentication
+- Protected API endpoint
+- PostgreSQL user persistence using Prisma
+- Redis-based login rate limiting
+- Maximum 5 login attempts per IP within 1 minute
+- HTTP `429 Too Many Requests` response after the rate limit is exceeded
+- Redis TTL-based rate-limit reset
+- Graceful handling of Redis failures
+- Clean and modular project structure
+
+## Project Structure
+
+```text
+src/
+├── controllers/
+│   └── auth.controller.ts
+├── middleware/
+│   ├── auth.middleware.ts
+│   └── rateLimit.middleware.ts
+├── routes/
+│   └── auth.routes.ts
+├── lib/
+│   ├── prisma.ts
+│   └── redis.ts
+├── app.ts
+└── server.ts
+
+prisma/
+└── schema.prisma
+```
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+PORT=3000
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/auth_db"
+REDIS_URL="rediss://default:YOUR_REDIS_PASSWORD@YOUR_REDIS_HOST:6379"
+JWT_SECRET="your_jwt_secret"
+```
+
+An `.env.example` file can also be included with placeholder values.
+
+> Do not commit real production credentials or secrets.
+
+## Installation
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Generate the Prisma client:
+
+```bash
+npx prisma generate
+```
+
+Run database migrations:
+
+```bash
+npx prisma migrate dev --name init
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+The server runs at:
+
+```text
+http://localhost:3000
+```
+
+## API Endpoints
+
+### Register User
+
+```http
+POST /api/auth/register
+```
+
+Example request body:
+
+```json
+{
+  "name": "Hrishabh",
+  "email": "hrishabh@example.com",
+  "password": "password123"
+}
+```
+
+Successful response:
+
+```text
+201 Created
+```
+
+The password is hashed before being stored in PostgreSQL.
+
+### Login
+
+```http
+POST /api/auth/login
+```
+
+Example request body:
+
+```json
+{
+  "email": "hrishabh@example.com",
+  "password": "password123"
+}
+```
+
+Successful login returns a JWT token:
+
+```text
+200 OK
+```
+
+Invalid credentials return:
+
+```text
+401 Unauthorized
+```
+
+### Protected Profile
+
+```http
+GET /api/auth/profile
+```
+
+Pass the JWT in the Authorization header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Successful response:
+
+```text
+200 OK
+```
+
+Missing, invalid, or expired tokens return:
+
+```text
+401 Unauthorized
+```
+
+## Redis Rate Limiting
+
+The login endpoint is protected by an IP-based Redis rate limiter.
+
+Each login request increments a Redis key based on the requesting IP address.
+
+Example key:
+
+```text
+login_attempts:<ip-address>
+```
+
+The first request creates the key and assigns a TTL of 60 seconds.
+
+A maximum of 5 login attempts are allowed within the 60-second window.
+
+```text
+Attempt 1 -> Allowed
+Attempt 2 -> Allowed
+Attempt 3 -> Allowed
+Attempt 4 -> Allowed
+Attempt 5 -> Allowed
+Attempt 6 -> 429 Too Many Requests
+```
+
+After the TTL expires, Redis automatically removes the key and login attempts are allowed again.
+
+## Redis Failure Handling
+
+Redis operations are wrapped in error handling.
+
+If Redis is temporarily unavailable, the application logs the Redis error and continues processing the request instead of crashing the authentication service.
+
+## HTTP Status Codes
+
+| Status | Usage                                       |
+| ------ | ------------------------------------------- |
+| `200`  | Successful login or protected request       |
+| `201`  | User successfully registered                |
+| `400`  | Missing or invalid request data             |
+| `401`  | Invalid credentials or authentication token |
+| `404`  | Requested user not found                    |
+| `409`  | User already exists                         |
+| `429`  | Login rate limit exceeded                   |
+| `500`  | Internal server error                       |
+
+## Security
+
+- Passwords are never stored in plain text.
+- bcrypt is used for password hashing.
+- JWT is used for protected API authentication.
+- Invalid login responses do not reveal whether a specific email exists.
+- Redis rate limiting helps reduce repeated login attempts.
+- Secrets are stored in environment variables.
+
+## Available Scripts
+
+Run development server:
+
+```bash
+npm run dev
+```
+
+Build the TypeScript project:
+
+```bash
+npm run build
+```
+
+Run the compiled project:
+
+```bash
+npm start
+```
+
+## Submission
+
+The project source code is maintained in Git and pushed to GitHub as required by the assessment.
